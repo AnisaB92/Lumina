@@ -1,61 +1,168 @@
 'use client';
-import { useState } from "react";
-import Link from "next/link";
-import ProductCard from "@/components/ProductCard";
-import { addTo } from "@/components/store";
 
-const MOCK = [
-  { id: 1, title: "Абайя с капюшоном", brand: "Veila", price: 120, url: "https://example.com/a", image: "https://images.unsplash.com/photo-1520975916090-3105956dac38?q=80&w=800&auto=format&fit=crop" },
-  { id: 2, title: "Костюм-тройка", brand: "Veila", price: 95, url: "https://example.com/b", image: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?q=80&w=800&auto=format&fit=crop" },
-  { id: 3, title: "Палантин", brand: "Veila", price: 25, url: "https://example.com/c", image: "https://images.unsplash.com/photo-1512436991641-6745cdb1723f?q=80&w=800&auto=format&fit=crop" },
+import { useMemo, useState } from 'react';
+
+const LOCAL_WARDROBE = [
+  { id: 'abaya', name: 'abaya', type: 'outerwear', styles: ['modest', 'elegant'], colors: ['black', 'beige', 'ivory'] },
+  { id: 'tunic-set', name: 'tunic set', type: 'set', styles: ['modest', 'casual'], colors: ['beige', 'soft pink', 'olive'] },
+  { id: 'hood-scarf', name: 'hood scarf', type: 'accessory', styles: ['modest', 'casual'], colors: ['ivory', 'beige', 'gray'] },
+  { id: 'hijab', name: 'hijab', type: 'accessory', styles: ['modest', 'elegant'], colors: ['ivory', 'soft pink', 'navy'] },
+  { id: 'wide-pants', name: 'wide pants', type: 'bottom', styles: ['casual', 'elegant'], colors: ['beige', 'white', 'black'] },
+  { id: 'maxi-dress', name: 'maxi dress', type: 'dress', styles: ['modest', 'elegant'], colors: ['soft pink', 'ivory', 'emerald'] },
+  { id: 'cardigan', name: 'cardigan', type: 'layer', styles: ['casual', 'modest'], colors: ['beige', 'ivory', 'brown'] },
+  { id: 'belt', name: 'belt', type: 'accessory', styles: ['elegant', 'casual'], colors: ['gold', 'tan', 'black'] },
+  { id: 'sneakers', name: 'sneakers', type: 'shoes', styles: ['casual'], colors: ['white', 'beige', 'soft pink'] },
+  { id: 'elegant-shoes', name: 'elegant shoes', type: 'shoes', styles: ['elegant', 'modest'], colors: ['gold', 'beige', 'black'] },
 ];
 
-export default function Stylist() {
-  const [messages, setMessages] = useState([
-    { role: "assistant", content: "Привет, я Lumina ✨ Что ищем сегодня? Могу собрать образ и дать ссылки на покупку." }
-  ]);
-  const [input, setInput] = useState("");
-  const [results, setResults] = useState(MOCK);
+function generateOutfit(userData, userRequest) {
+  const styleMatch = LOCAL_WARDROBE.filter((item) => item.styles.includes(userData.style));
+  const preferredColor = userData.preferredColor?.trim().toLowerCase();
+  const byColor = preferredColor
+    ? styleMatch.filter((item) => item.colors.some((color) => color.toLowerCase() === preferredColor))
+    : [];
 
-  const send = async () => {
-    if (!input.trim()) return;
-    const newMsgs = [...messages, { role: "user", content: input }];
-    setMessages(newMsgs);
-    setInput("");
-    // simple mock "search"
-    setTimeout(() => {
-      setMessages(m => [...m, { role: "assistant", content: "Собрала три варианта — добавляю ниже. Если нравится, жмите «В корзину» или «Купить»." }]);
-      setResults(MOCK);
-    }, 500);
+  const selected = (byColor.length ? byColor : styleMatch).slice(0, 5);
+  const fallback = LOCAL_WARDROBE.filter((item) => !selected.find((picked) => picked.id === item.id)).slice(0, Math.max(0, 5 - selected.length));
+  const items = [...selected, ...fallback].slice(0, 5).map((item) => item.name);
+
+  return {
+    title: `${userData.style[0].toUpperCase()}${userData.style.slice(1)} outfit for size ${userData.size}`,
+    items,
+    description: `Designed for height ${userData.height} with a ${userData.style} mood. Request focus: ${userRequest || 'balanced everyday look'}.`,
+    colors: preferredColor ? [preferredColor, 'ivory', 'gold'] : ['beige', 'soft pink', 'ivory', 'gold'],
   };
+}
 
-  const add = (item) => {
-    addTo("cart", item);
-    setMessages(m => [...m, { role: "assistant", content: `Добавила «${item.title}» в корзину.` }]);
+export default function StylistPage() {
+  const [userData, setUserData] = useState({
+    height: '',
+    size: 'M',
+    style: 'modest',
+    preferredColor: '',
+  });
+  const [userRequest, setUserRequest] = useState('');
+  const [outfit, setOutfit] = useState(null);
+
+  const colorPalette = useMemo(() => ({
+    page: '#fdf8f2',
+    card: '#fffdf9',
+    border: '#efdcc7',
+    title: '#6b4d39',
+    subtitle: '#9a7b67',
+    accent: '#c89b3c',
+    pink: '#f6e4ea',
+  }), []);
+
+  const handleGenerate = () => {
+    const result = generateOutfit(userData, userRequest);
+    setOutfit(result);
   };
 
   return (
-    <main className="max-w-5xl mx-auto p-4 space-y-4">
-      <div className="card">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Lumina — ваш стилист</h2>
-          <Link href="/cart" className="text-sm underline">Корзина</Link>
-        </div>
-        <div className="space-y-2 max-h-64 overflow-auto my-3">
-          {messages.map((m, i) => (
-            <div key={i} className={m.role === "assistant" ? "text-sm bg-gray-50 border p-3 rounded-xl w-fit" : "text-sm bg-black text-white p-3 rounded-xl w-fit ml-auto"}>
-              {m.content}
-            </div>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input value={input} onChange={e=>setInput(e.target.value)} placeholder="Например: «Повседневный образ в бежевых тонах»" className="flex-1 border rounded-xl px-3 py-2"/>
-          <button onClick={send} className="btn btn-primary">Отправить</button>
-        </div>
-      </div>
+    <main className="min-h-screen px-4 py-8" style={{ backgroundColor: colorPalette.page }}>
+      <div className="mx-auto w-full max-w-3xl space-y-5">
+        <section className="rounded-3xl border p-6 shadow-sm" style={{ backgroundColor: colorPalette.card, borderColor: colorPalette.border }}>
+          <h1 className="text-3xl font-semibold" style={{ color: colorPalette.title }}>Lumina AI Stylist</h1>
+          <p className="mt-1 text-sm" style={{ color: colorPalette.subtitle }}>Your modest AI stylist</p>
+        </section>
 
-      <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {results.map(item => <ProductCard key={item.id} item={item} onAdd={add} />)}
+        <section className="rounded-3xl border p-5 shadow-sm" style={{ backgroundColor: '#fff', borderColor: colorPalette.border }}>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="text-sm" style={{ color: colorPalette.title }}>
+              Height
+              <input
+                value={userData.height}
+                onChange={(e) => setUserData((prev) => ({ ...prev, height: e.target.value }))}
+                placeholder="e.g. 168 cm"
+                className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm focus:outline-none"
+                style={{ borderColor: colorPalette.border }}
+              />
+            </label>
+
+            <label className="text-sm" style={{ color: colorPalette.title }}>
+              Size
+              <select
+                value={userData.size}
+                onChange={(e) => setUserData((prev) => ({ ...prev, size: e.target.value }))}
+                className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm focus:outline-none"
+                style={{ borderColor: colorPalette.border }}
+              >
+                {['S', 'M', 'L', 'XL', '2XL'].map((size) => <option key={size}>{size}</option>)}
+              </select>
+            </label>
+
+            <label className="text-sm" style={{ color: colorPalette.title }}>
+              Style
+              <select
+                value={userData.style}
+                onChange={(e) => setUserData((prev) => ({ ...prev, style: e.target.value }))}
+                className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm focus:outline-none"
+                style={{ borderColor: colorPalette.border }}
+              >
+                {['modest', 'casual', 'elegant'].map((style) => <option key={style}>{style}</option>)}
+              </select>
+            </label>
+
+            <label className="text-sm" style={{ color: colorPalette.title }}>
+              Preferred color
+              <input
+                value={userData.preferredColor}
+                onChange={(e) => setUserData((prev) => ({ ...prev, preferredColor: e.target.value }))}
+                placeholder="beige, ivory, soft pink..."
+                className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm focus:outline-none"
+                style={{ borderColor: colorPalette.border }}
+              />
+            </label>
+          </div>
+
+          <label className="mt-4 block text-sm" style={{ color: colorPalette.title }}>
+            Your request
+            <textarea
+              value={userRequest}
+              onChange={(e) => setUserRequest(e.target.value)}
+              placeholder="I need a modest elegant look for dinner with neutral tones"
+              rows={4}
+              className="mt-1 w-full rounded-2xl border px-3 py-2 text-sm focus:outline-none"
+              style={{ borderColor: colorPalette.border }}
+            />
+          </label>
+
+          <button
+            onClick={handleGenerate}
+            className="mt-4 w-full rounded-2xl px-4 py-3 text-sm font-medium transition hover:opacity-90 sm:w-auto"
+            style={{ backgroundColor: colorPalette.accent, color: '#fff' }}
+          >
+            Generate Outfit
+          </button>
+        </section>
+
+        <section className="rounded-3xl border p-5 shadow-sm" style={{ backgroundColor: colorPalette.pink, borderColor: colorPalette.border }}>
+          <h2 className="text-lg font-semibold" style={{ color: colorPalette.title }}>Outfit result</h2>
+          {outfit ? (
+            <div className="mt-3 space-y-3 text-sm" style={{ color: colorPalette.title }}>
+              <p className="font-medium">{outfit.title}</p>
+              <p>{outfit.description}</p>
+              <div>
+                <p className="font-medium">Items:</p>
+                <ul className="list-disc pl-5">
+                  {outfit.items.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {outfit.colors.map((color) => (
+                  <span key={color} className="rounded-full border px-3 py-1 text-xs" style={{ borderColor: colorPalette.border, backgroundColor: '#fff' }}>
+                    {color}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm" style={{ color: colorPalette.subtitle }}>
+              Fill in your preferences and press “Generate Outfit” to see your personalized suggestion.
+            </p>
+          )}
+        </section>
       </div>
     </main>
   );
